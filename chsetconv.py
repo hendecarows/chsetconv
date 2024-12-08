@@ -67,6 +67,7 @@ class Config:
             'bonpt': 'utf-8',
             'bonptx': 'utf-8',
             'bonpx4': 'cp932',
+            'mirakurun': 'utf-8',
         }
         self._newlines = {
             'dvbv5': '\n',
@@ -74,6 +75,7 @@ class Config:
             'bonpt': '\n',
             'bonptx': '\n',
             'bonpx4': '\r\n',
+            'mirakurun': '\n',
         }
         self._input = None
         self._output = None
@@ -126,9 +128,9 @@ class Config:
         )
         parser.add_argument(
             '--format',
-            help='output format (dvbv5,bondvb,bonpt,bonptx,bonpx4)',
+            help='output format (dvbv5,bondvb,bonpt,bonptx,bonpx4,mirakurun)',
             default='dvbv5',
-            choices=['dvbv5', 'bondvb', 'bonpt', 'bonptx', 'bonpx4'],
+            choices=['dvbv5', 'bondvb', 'bonpt', 'bonptx', 'bonpx4', 'mirakurun'],
         )
         parser.add_argument(
             '--ignore',
@@ -386,6 +388,33 @@ class ISDBScannerBonPX4Converter(BaseConverter):
 
         return buf
 
+class ISDBScannerMirakurunConverter(BaseConverter):
+
+    def __init__(self, jsons: json, format: str, ignores: set):
+        super().__init__(jsons, format, ignores)
+
+    def dump(self):
+        buf = []
+        if 'BS' in self._jsons:
+            for r in self._jsons['BS']:
+                if self.is_ignore_tsid(r['transport_stream_id']):
+                    continue
+                buf.append('- name: {}'.format(r['physical_channel_recpt1']))
+                buf.append('  type: BS')
+                buf.append('  channel: {}'.format(r['physical_channel_recpt1']))
+                buf.append('  isDisabled: false')
+
+        if 'CS' in self._jsons:
+            for r in self._jsons['CS']:
+                if self.is_ignore_tsid(r['transport_stream_id']):
+                    continue
+                buf.append('- name: {}'.format(r['physical_channel_recpt1']))
+                buf.append('  type: CS')
+                buf.append('  channel: {}'.format(r['physical_channel_recpt1']))
+                buf.append('  isDisabled: false')
+
+        return buf
+
 class Px4TsIdDVBv5Converter(BaseConverter):
 
     def __init__(self, jsons: json, format: str, ignores: set):
@@ -588,6 +617,39 @@ class Px4TsIdBonPX4Converter(BaseConverter):
 
         return buf
 
+class Px4TsIdMirakurunConverter(BaseConverter):
+
+    def __init__(self, jsons: json, format: str, ignores: set):
+        super().__init__(jsons, format, ignores)
+
+    def dump(self):
+        buf = []
+        if 'BS' in self._jsons:
+            for r in self._jsons['BS']:
+                if r['has_lock'] == False:
+                    continue
+                for idx, tsid in enumerate(r['transport_stream_id']):
+                    if self.is_ignore_tsid(tsid):
+                        continue
+                    buf.append('- name: BS{:02d}_{}'.format(r['number'], idx))
+                    buf.append('  type: BS')
+                    buf.append('  channel: BS{:02d}_{}'.format(r['number'], idx))
+                    buf.append('  isDisabled: false')
+
+        if 'CS' in self._jsons:
+            for r in self._jsons['CS']:
+                if r['has_lock'] == False:
+                    continue
+                for idx, tsid in enumerate(r['transport_stream_id']):
+                    if self.is_ignore_tsid(tsid):
+                        continue
+                    buf.append('- name: CS{:d}'.format(r['number']))
+                    buf.append('  type: CS')
+                    buf.append('  channel: CS{:d}'.format(r['number']))
+                    buf.append('  isDisabled: false')
+
+        return buf
+
 class Converter:
 
     def __init__(self, jsons: json, format: str, ignores: set):
@@ -600,6 +662,7 @@ class Converter:
                 'bonpt': ISDBScannerBonPTConverter(jsons, format, ignores),
                 'bonptx': ISDBScannerBonPTXConverter(jsons, format, ignores),
                 'bonpx4': ISDBScannerBonPX4Converter(jsons, format, ignores),
+                'mirakurun': ISDBScannerMirakurunConverter(jsons, format, ignores),
             }[format]
         elif json_type == 'px4tsid':
             self._converter: BaseConverter = {
@@ -608,6 +671,7 @@ class Converter:
                 'bonpt': Px4TsIdBonPTConverter(jsons, format, ignores),
                 'bonptx': Px4TsIdBonPTXConverter(jsons, format, ignores),
                 'bonpx4': Px4TsIdBonPX4Converter(jsons, format, ignores),
+                'mirakurun': Px4TsIdMirakurunConverter(jsons, format, ignores),
             }[format]
         else:
             raise Exception('unknown json type')

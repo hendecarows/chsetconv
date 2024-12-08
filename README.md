@@ -46,6 +46,12 @@ chsetconv.py --format bonptx Channels.json bonptx.txt
 chsetconv.py --format bonpx4 Channels.json BonDriver_PX4-S.ChSet.txt
 ```
 
+[mirakurun][link_mirakurun]のchannels.yml形式で出力します。出力はBS,CS部分のみです。
+
+```console
+chsetconv.py --format mirakurun tsids.json channels_bscs.yml
+```
+
 移動前のTSID等不必要なTSIDが含まれている場合は、`--ignore`オプションで出力から除外して下さい。
 
 ```console
@@ -57,3 +63,4 @@ chsetconv.py --format bonpx4 --ignore 16529,18099,18130 Channels.json BonDriver_
 [link_bdpl]: https://github.com/u-n-k-n-o-w-n/BonDriverProxy_Linux
 [link_bonptx]: https://github.com/hendecarows/BonDriver_LinuxPTX
 [link_bonpx4]: https://github.com/tsukumijima/px4_drv
+[link_mirakurun]: https://github.com/Chinachu/Mirakurun
