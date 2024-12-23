@@ -496,7 +496,7 @@ class Px4TsIdDVBv5LnbConverter(BaseConverter):
                     buf.append('[BS{:02d}_{}]'.format(r['number'], idx))
                     buf.append('\tDELIVERY_SYSTEM = ISDBS')
                     buf.append('\tLNB = 110BS')
-                    buf.append('\tFREQUENCY = {}'.format(r['frequency_if_khz'] + 10678000))
+                    buf.append('\tFREQUENCY = {}'.format(r['frequency_khz']))
                     buf.append('\tSTREAM_ID = {}'.format(tsid))
 
         if 'CS' in self._jsons:
@@ -509,7 +509,7 @@ class Px4TsIdDVBv5LnbConverter(BaseConverter):
                     buf.append('[CS{}]'.format(r['number']))
                     buf.append('\tDELIVERY_SYSTEM = ISDBS')
                     buf.append('\tLNB = 110BS')
-                    buf.append('\tFREQUENCY = {}'.format(r['frequency_if_khz'] + 10678000))
+                    buf.append('\tFREQUENCY = {}'.format(r['frequency_khz']))
                     buf.append('\tSTREAM_ID = {}'.format(tsid))
 
         return buf
