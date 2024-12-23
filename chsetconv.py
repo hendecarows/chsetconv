@@ -63,6 +63,7 @@ class Config:
     def __init__(self, desc: str):
         self._encodings = {
             'dvbv5': 'utf-8',
+            'dvbv5lnb': 'utf-8',
             'bondvb': 'utf-8',
             'bonpt': 'utf-8',
             'bonptx': 'utf-8',
@@ -71,6 +72,7 @@ class Config:
         }
         self._newlines = {
             'dvbv5': '\n',
+            'dvbv5lnb': '\n',
             'bondvb': '\n',
             'bonpt': '\n',
             'bonptx': '\n',
@@ -128,9 +130,9 @@ class Config:
         )
         parser.add_argument(
             '--format',
-            help='output format (dvbv5,bondvb,bonpt,bonptx,bonpx4,mirakurun)',
+            help='output format (dvbv5,dvbv5lnb,bondvb,bonpt,bonptx,bonpx4,mirakurun)',
             default='dvbv5',
-            choices=['dvbv5', 'bondvb', 'bonpt', 'bonptx', 'bonpx4', 'mirakurun'],
+            choices=['dvbv5', 'dvbv5lnb', 'bondvb', 'bonpt', 'bonptx', 'bonpx4', 'mirakurun'],
         )
         parser.add_argument(
             '--ignore',
@@ -262,6 +264,35 @@ class ISDBScannerDVBv5Converter(BaseConverter):
                 buf.append('[{}]'.format(r['physical_channel_recpt1']))
                 buf.append('\tDELIVERY_SYSTEM = ISDBS')
                 buf.append('\tFREQUENCY = {}'.format(int(r['satellite_frequency'] *10**6) - 10678000))
+                buf.append('\tSTREAM_ID = {}'.format(r['transport_stream_id']))
+
+        return buf
+
+class ISDBScannerDVBv5LnbConverter(BaseConverter):
+
+    def __init__(self, jsons: json, format: str, ignores: set):
+        super().__init__(jsons, format, ignores)
+
+    def dump(self):
+        buf = []
+        if 'BS' in self._jsons:
+            for r in self._jsons['BS']:
+                if self.is_ignore_tsid(r['transport_stream_id']):
+                    continue
+                buf.append('[{}]'.format(r['physical_channel_recpt1']))
+                buf.append('\tDELIVERY_SYSTEM = ISDBS')
+                buf.append('\tLNB = 110BS')
+                buf.append('\tFREQUENCY = {}'.format(int(r['satellite_frequency'] *10**6)))
+                buf.append('\tSTREAM_ID = {}'.format(r['transport_stream_id']))
+
+        if 'CS' in self._jsons:
+            for r in self._jsons['CS']:
+                if self.is_ignore_tsid(r['transport_stream_id']):
+                    continue
+                buf.append('[{}]'.format(r['physical_channel_recpt1']))
+                buf.append('\tDELIVERY_SYSTEM = ISDBS')
+                buf.append('\tLNB = 110BS')
+                buf.append('\tFREQUENCY = {}'.format(int(r['satellite_frequency'] *10**6)))
                 buf.append('\tSTREAM_ID = {}'.format(r['transport_stream_id']))
 
         return buf
@@ -444,6 +475,41 @@ class Px4TsIdDVBv5Converter(BaseConverter):
                     buf.append('[CS{}]'.format(r['number']))
                     buf.append('\tDELIVERY_SYSTEM = ISDBS')
                     buf.append('\tFREQUENCY = {}'.format(r['frequency_if_khz']))
+                    buf.append('\tSTREAM_ID = {}'.format(tsid))
+
+        return buf
+
+class Px4TsIdDVBv5LnbConverter(BaseConverter):
+
+    def __init__(self, jsons: json, format: str, ignores: set):
+        super().__init__(jsons, format, ignores)
+
+    def dump(self):
+        buf = []
+        if 'BS' in self._jsons:
+            for r in self._jsons['BS']:
+                if r['has_lock'] == False:
+                    continue
+                for idx, tsid in enumerate(r['transport_stream_id']):
+                    if self.is_ignore_tsid(tsid):
+                        continue
+                    buf.append('[BS{:02d}_{}]'.format(r['number'], idx))
+                    buf.append('\tDELIVERY_SYSTEM = ISDBS')
+                    buf.append('\tLNB = 110BS')
+                    buf.append('\tFREQUENCY = {}'.format(r['frequency_if_khz'] + 10678000))
+                    buf.append('\tSTREAM_ID = {}'.format(tsid))
+
+        if 'CS' in self._jsons:
+            for r in self._jsons['CS']:
+                if r['has_lock'] == False:
+                    continue
+                for idx, tsid in enumerate(r['transport_stream_id']):
+                    if self.is_ignore_tsid(tsid):
+                        continue
+                    buf.append('[CS{}]'.format(r['number']))
+                    buf.append('\tDELIVERY_SYSTEM = ISDBS')
+                    buf.append('\tLNB = 110BS')
+                    buf.append('\tFREQUENCY = {}'.format(r['frequency_if_khz'] + 10678000))
                     buf.append('\tSTREAM_ID = {}'.format(tsid))
 
         return buf
@@ -658,6 +724,7 @@ class Converter:
         if json_type == 'ISDBScanner':
             self._converter: BaseConverter = {
                 'dvbv5': ISDBScannerDVBv5Converter(jsons, format, ignores),
+                'dvbv5lnb': ISDBScannerDVBv5LnbConverter(jsons, format, ignores),
                 'bondvb': ISDBScannerBonDVBConverter(jsons, format, ignores),
                 'bonpt': ISDBScannerBonPTConverter(jsons, format, ignores),
                 'bonptx': ISDBScannerBonPTXConverter(jsons, format, ignores),
@@ -667,6 +734,7 @@ class Converter:
         elif json_type == 'px4tsid':
             self._converter: BaseConverter = {
                 'dvbv5': Px4TsIdDVBv5Converter(jsons, format, ignores),
+                'dvbv5lnb': Px4TsIdDVBv5LnbConverter(jsons, format, ignores),
                 'bondvb': Px4TsIdBonDVBConverter(jsons, format, ignores),
                 'bonpt': Px4TsIdBonPTConverter(jsons, format, ignores),
                 'bonptx': Px4TsIdBonPTXConverter(jsons, format, ignores),
